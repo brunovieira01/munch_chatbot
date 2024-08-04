@@ -37,28 +37,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await context.bot.send_message(chat_id=chat_id, text=greeting_message)
 
 
-async def handle_caps_command(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    """
-    Converts the text sent by the user to uppercase and sends it back to the user.
-    FOR TESTING COMMANDS ONLY.
-
-    Parameters
-    ----------
-    update : telegram.Update
-        The update object that contains information about the message.
-    context : telegram.ext.ContextTypes.DEFAULT_TYPE
-        The context object that contains information about the Telegram bot and its state.
-
-    Returns
-    -------
-    None
-    """
-    message_text = " ".join(context.args).upper()
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=message_text)
-
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handles incoming messages from the user and sends them to the VectorShift API for processing.
@@ -74,6 +52,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     -------
     None
     """
+    chat_id = update.effective_chat.id
+
+    if chat_id not in settings.ALLOWED_CHAT_IDS:
+        logging.info(f"Chat ID {chat_id} is not allowed.")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="You are not authorized to use this bot."
+        )
+        return
+    
     message = update.message
     user_message = None
 
@@ -95,10 +83,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logging.info(f"User message: {user_message}")
         response = answer_engine.get_response(user_message)
         logging.info(f"Response: {response}")
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
+        await context.bot.send_message(chat_id=chat_id, text=response)
     else:
         await context.bot.send_message(
-            chat_id=update.effective_chat.id,
+            chat_id=chat_id,
             text="Sorry, I couldn't process your message.",
         )
 

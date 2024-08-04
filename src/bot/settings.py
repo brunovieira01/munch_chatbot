@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     TELEGRAM_BOT_TOKEN: str = ""
     VECTORSHIFT_API_KEY: str = ""
+    ALLOWED_CHAT_IDS: list[int] = []
 
     class Config:
         env_file = ".env"
