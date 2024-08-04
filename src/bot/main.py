@@ -42,6 +42,7 @@ async def handle_caps_command(
 ) -> None:
     """
     Converts the text sent by the user to uppercase and sends it back to the user.
+    FOR TESTING COMMANDS ONLY.
 
     Parameters
     ----------
