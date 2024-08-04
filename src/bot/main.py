@@ -1,13 +1,13 @@
 import io
 import logging
+import os
 
 from telegram import Update
 from telegram.ext import (ApplicationBuilder, CommandHandler, ContextTypes,
                           MessageHandler, filters)
 
-from speech_to_text import speech_to_text_whisper
-import os
-from settings import settings
+from .settings import settings
+from .speech_to_text import speech_to_text_whisper
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
