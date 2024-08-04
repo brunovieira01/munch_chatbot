@@ -3,7 +3,7 @@ import json
 import requests
 
 
-class VectorShiftAPI:
+class VectorShift:
     def __init__(self, api_key: str) -> None:
         """
         Initialize the VectorShiftAPI class with the given API key.
@@ -39,4 +39,4 @@ class VectorShiftAPI:
         }
         response = requests.post(self.url, headers=self.headers, data=data)
         response_json = response.json()
-        return response_json.get("response", "Sorry, I couldn't process your request.")
+        return response_json.get("output_text", "Sorry, I couldn't process your request.")

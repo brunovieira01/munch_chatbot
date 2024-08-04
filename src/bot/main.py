@@ -7,13 +7,13 @@ from telegram.ext import (ApplicationBuilder, CommandHandler, ContextTypes,
 
 from .settings import settings
 from .speech_to_text import SpeechToTextWhisper
-from .vector_shift import VectorShiftAPI
+from .vector_shift import VectorShift
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
-vector_shift_api = VectorShiftAPI(settings.VECTORSHIFT_API_KEY)
+answer_engine = VectorShift(settings.VECTORSHIFT_API_KEY)
 speech_to_text = SpeechToTextWhisper(settings.OPENAI_API_KEY)
 
 
@@ -91,7 +91,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     if user_message:
-        response = vector_shift_api.get_response(user_message)
+        logging.info(f"User message: {user_message}")
+        response = answer_engine.get_response(user_message)
+        logging.info(f"Response: {response}")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
     else:
         await context.bot.send_message(
