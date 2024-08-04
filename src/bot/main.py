@@ -1,4 +1,3 @@
-import io
 import logging
 import os
 
@@ -7,87 +6,107 @@ from telegram.ext import (ApplicationBuilder, CommandHandler, ContextTypes,
                           MessageHandler, filters)
 
 from .settings import settings
-from .speech_to_text import speech_to_text_whisper
+from .speech_to_text import SpeechToTextWhisper
+from .vector_shift import VectorShiftAPI
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
+vector_shift_api = VectorShiftAPI(settings.VECTORSHIFT_API_KEY)
+speech_to_text = SpeechToTextWhisper(settings.OPENAI_API_KEY)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
-    This function is called when the user sends the /start command to the bot.
+    Handles the /start command from the user.
 
     Parameters
     ----------
-    update : Update
-        object that contains all the information and data that are coming from Telegram
-        itself (like the message, the user who issued the command, etc)
-    context : ContextTypes.DEFAULT_TYPE
-        object that contains information and data about the status of the library
-        itself (like the Bot, the Application, the job_queue, etc).
+    update : telegram.Update
+        The update object that contains information about the message.
+    context : telegram.ext.ContextTypes.DEFAULT_TYPE
+        The context object that contains information about the Telegram bot and its state.
+
+    Returns
+    -------
+    None
     """
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!"
-    )
+    chat_id = update.effective_chat.id
+    greeting_message = "Hello, I'm Team Influence Bot. How can I assist you?"
+    await context.bot.send_message(chat_id=chat_id, text=greeting_message)
 
 
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_caps_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
-    This function is called when the user sends a message to the bot. It echoes the message back to the user.
+    Converts the text sent by the user to uppercase and sends it back to the user.
 
     Parameters
     ----------
-    update : Update
-        Object that contains all the information and data that are coming from Telegram
-        itself (like the message, the user who issued the command, etc).
-    context : ContextTypes.DEFAULT_TYPE
-        Object that contains information and data about the status of the library
-        itself (like the Bot, the Application, the job_queue, etc).
+    update : telegram.Update
+        The update object that contains information about the message.
+    context : telegram.ext.ContextTypes.DEFAULT_TYPE
+        The context object that contains information about the Telegram bot and its state.
+
+    Returns
+    -------
+    None
     """
-    if update.message and update.message.text:
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id, text=update.message.text
-        )
+    message_text = " ".join(context.args).upper()
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=message_text)
+
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handles incoming messages from the user and sends them to the VectorShift API for processing.
+
+    Parameters
+    ----------
+    update : telegram.Update
+        Contains information about the incoming message.
+    context : telegram.ext.ContextTypes.DEFAULT_TYPE
+        Contains information about the bot's state.
+
+    Returns
+    -------
+    None
+    """
+    message = update.message
+    user_message = None
+
+    if message and message.text:
+        user_message = message.text
+    elif message and message.voice:
+        file = await context.bot.get_file(message.voice.file_id)
+        file_path = os.path.join("downloads", f"{file.file_id}.oga")
+        await file.download_to_drive(file_path)
+        try:
+            user_message = speech_to_text.transcribe(file_path)
+        finally:
+            os.remove(file_path)
     else:
-        logging.info("Received a message without text, ignoring.")
+        logging.info("Received a message without text or voice, ignoring.")
+        return
 
-
-async def caps(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    This function is called when the user sends the /caps command to the bot.
-    It converts the text to uppercase.
-    """
-    text_caps = " ".join(context.args).upper()
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=text_caps)
-
-
-async def translate_voice(update, context):
-    print("translate_voice")
-
-    file = await context.bot.get_file(update.message.voice.file_id)
-    file_path = os.path.join("downloads", f"{file.file_id}.oga")
-    await file.download_to_drive(file_path)
-
-    text = speech_to_text_whisper(file_path)
-    logging.info(f"Text: {text}")
-    if not text:
-        text = "I don't understand this file"
-
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    if user_message:
+        response = vector_shift_api.get_response(user_message)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
+    else:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Sorry, I couldn't process your message.",
+        )
 
 
 if __name__ == "__main__":
     application = ApplicationBuilder().token(settings.TELEGRAM_BOT_TOKEN).build()
 
     start_handler = CommandHandler("start", start)
-    echo_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), echo)
-    caps_handler = CommandHandler("caps", caps)
-    voice_handler = MessageHandler(filters.VOICE, translate_voice)
+    message_handler = MessageHandler(filters.TEXT | filters.VOICE, handle_message)
 
     application.add_handler(start_handler)
-    application.add_handler(echo_handler)
-    application.add_handler(caps_handler)
-    application.add_handler(voice_handler)
+    application.add_handler(message_handler)
 
     application.run_polling()

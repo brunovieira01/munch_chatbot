@@ -2,23 +2,41 @@ import json
 
 import requests
 
-from .settings import settings
 
-url = "https://api.vectorshift.ai/api/pipelines/run"
+class VectorShiftAPI:
+    def __init__(self, api_key: str) -> None:
+        """
+        Initialize the VectorShiftAPI class with the given API key.
 
-headers = {
-    "Api-Key": settings.VECTORSHIFT_API_KEY,
-}
+        Parameters
+        ----------
+        api_key : str
+            The API key for accessing the VectorShift API.
+        """
+        self.url = "https://api.vectorshift.ai/api/pipelines/run"
+        self.headers = {
+            "Api-Key": api_key,
+        }
 
-question = "Can a business be both a Vendor and Influencer?"
+    def get_response(self, user_message: str) -> str:
+        """
+        Get a response from the VectorShift API based on the user's message.
 
-data = {
-    # String inputs, or JSON representations of files for File inputs
-    "inputs": json.dumps({"User_Question": question}),
-    "pipeline_name": "Shoply Chatbot",
-    "username": "sapienzarif",
-}
+        Parameters
+        ----------
+        user_message : str
+            The message from the user that needs to be processed by the VectorShift API.
 
-response = requests.post(url, headers=headers, data=data)
-response = response.json()
-print(response)
+        Returns
+        -------
+        str
+            The response from the VectorShift API. If the API call fails, returns a default error message.
+        """
+        data = {
+            "inputs": json.dumps({"User_Question": user_message}),
+            "pipeline_name": "Shoply Chatbot",
+            "username": "sapienzarif",
+        }
+        response = requests.post(self.url, headers=self.headers, data=data)
+        response_json = response.json()
+        return response_json.get("response", "Sorry, I couldn't process your request.")
