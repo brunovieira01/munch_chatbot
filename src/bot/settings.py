@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from pydantic import validator
+from loguru import logger
 
 class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
@@ -8,9 +9,14 @@ class Settings(BaseSettings):
     ALLOWED_CHAT_IDS: list[int] = []
 
     @validator('ALLOWED_CHAT_IDS', pre=True)
-    def parse_allowed_chat_ids(cls, v):
+    def parse_allowed_chat_ids(cls, v) -> list[int]:
+        logger.debug(f"Parsing ALLOWED_CHAT_IDS: {v}")
         if isinstance(v, str):
-            return [int(i) for i in v.split(',')]
+            try:
+                return [int(i) for i in v.split(',')]
+            except ValueError as e:
+                logger.error(f"Error parsing ALLOWED_CHAT_IDS: {e}")
+                raise
         elif isinstance(v, int):
             return [v]
         return v
